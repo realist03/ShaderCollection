@@ -60,7 +60,7 @@ half4 LitPassFragment(CustomVaryings input) : SV_Target
     InitializeCustomInputData(input, customSurfaceData.normalTS, customInputData);
     
     half4 color = DisneyBRDFFragment(customInputData, customSurfaceData);
-    color.rgb = MixFog(color.rgb, customInputData.fogCoord);
+    //color.rgb = MixFog(color.rgb, customInputData.fogCoord);
     color = LinearToSRGB(color);
     return color;
 }

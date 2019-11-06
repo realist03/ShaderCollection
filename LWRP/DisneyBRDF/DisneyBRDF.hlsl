@@ -94,10 +94,12 @@ half DisneyDiffuse(half NdotV, half NdotL, half LdotH, half perceptualRoughness)
 // [Burley 2012, "Physically-Based Shading at Disney"]
 float3 Diffuse_Burley( float3 DiffuseColor, float Roughness, float NoV, float NoL, float VoH )
 {
-	float FD90 = 0.5 + 2 * VoH * VoH * Roughness;
+    float bias = lerp(0,0,Roughness);
+    float factor = lerp(1,1.51,Roughness);
+	float FD90 = bias + 2 * VoH * VoH * Roughness;
 	float FdV = 1 + (FD90 - 1) * Pow5( 1 - NoV );
 	float FdL = 1 + (FD90 - 1) * Pow5( 1 - NoL );
-	return DiffuseColor * ( (1 / PI) * FdV * FdL );
+	return DiffuseColor * ( (1 / PI) * FdV * FdL ) * factor;
 }
 
 float2 LightingFuncGGX_FV(float dotLH, float roughness)
@@ -187,10 +189,10 @@ half3 DisneyBRDF(CustomSurfaceData surfaceData, half3 L, half3 V, half3 N, half3
     half FH = SchlickFresnel(LdotH);
     half3 Fs = lerp(Cspec0, half3(1,1,1), FH);
 
-    half Gs  = smithG_GGX_aniso(NdotL, dot(L, X), dot(L, Y), ax, ay);
-    Gs *= smithG_GGX_aniso(NdotV, dot(V, X), dot(V, Y), ax, ay);
-    //half Gs = LightingFuncGGX_OPT3(N,V,L,surfaceData.roughness,NdotH);
-    //Gs *= Gs;
+    //half Gs  = smithG_GGX_aniso(NdotL, dot(L, X), dot(L, Y), ax, ay);
+    //Gs *= smithG_GGX_aniso(NdotV, dot(V, X), dot(V, Y), ax, ay);
+    half Gs = LightingFuncGGX_OPT3(N,V,L,surfaceData.roughness,NdotH);
+    Gs *= Gs;
     //half Gs = D_GGXaniso(ax, ay, NdotH, H, X, Y);
 
 
@@ -204,8 +206,9 @@ half3 DisneyBRDF(CustomSurfaceData surfaceData, half3 L, half3 V, half3 N, half3
     half Gr = smithG_GGX(NdotL, .25) * smithG_GGX(NdotV, .25);
     
     //half3 a = SchlickFresnel(VdotH);
-    return ((1/PI) * lerp(Fd,1,surfaceData.subsurface)*Cdlin ) * (1-surfaceData.metallic) + Gs*Fs*Ds + .25*surfaceData.clearcoat*Gr*Fr*Dr;
-    //return half4(a,1);
+    return ((1/PI) * pow(Fd,0.45)*Cdlin + Fsheen) + Gs*Fs*Ds + .25*surfaceData.clearcoat*Gr*Fr*Dr;
+    //return half4(NdotL * surfaceData.albedo,1);
+    //return (1-surfaceData.metallic).xxxx;
 }
 
 half3 DisneyPBR(CustomSurfaceData surfaceData, half3 lightColor, half3 lightDirectionWS,
