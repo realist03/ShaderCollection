@@ -136,7 +136,7 @@
                 float3 ViewDirection = normalize( _WorldSpaceCameraPos.xyz - world);
                 float3 WorldTangent = mul((float3x3)unity_ObjectToWorld,tangent.xyz);
                 float3 WorldBinormal = cross(NormalDirection,WorldTangent)*tangent.w;
-                return float4(BRDF( LightDirection, ViewDirection, NormalDirection, WorldTangent, WorldBinormal ), 1.0);
+                return pow(float4(BRDF( LightDirection, ViewDirection, NormalDirection, WorldTangent, WorldBinormal ), 1.0),0.45);
             }
             ENDCG
         }
