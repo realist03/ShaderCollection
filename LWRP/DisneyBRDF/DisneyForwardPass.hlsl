@@ -34,13 +34,9 @@ CustomVaryings LitPassVertex(CustomAttributes input)
 
     output.fogFactorAndVertexLight = half4(fogFactor, vertexLight);
 
-#ifdef _ADDITIONAL_LIGHTS
     output.positionWS = vertexInput.positionWS;
-#endif
 
-#if defined(_MAIN_LIGHT_SHADOWS) && !defined(_RECEIVE_SHADOWS_OFF)
     output.shadowCoord = GetShadowCoord(vertexInput);
-#endif
 
     output.positionCS = vertexInput.positionCS;
 

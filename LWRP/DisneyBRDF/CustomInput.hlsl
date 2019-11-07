@@ -23,9 +23,7 @@ struct CustomVaryings
     float2 uv                       : TEXCOORD0;
     DECLARE_LIGHTMAP_OR_SH(lightmapUV, vertexSH, 1);
 
-#ifdef _ADDITIONAL_LIGHTS
     float3 positionWS               : TEXCOORD2;
-#endif
 
     half4 normalWS                  : TEXCOORD3;    // xyz: normal, w: viewDir.x
     half4 tangentWS                 : TEXCOORD4;    // xyz: tangent, w: viewDir.y
@@ -33,9 +31,7 @@ struct CustomVaryings
 
     half4 fogFactorAndVertexLight   : TEXCOORD6; // x: fogFactor, yzw: vertex light
 
-#ifdef _MAIN_LIGHT_SHADOWS
     float4 shadowCoord              : TEXCOORD7;
-#endif
 
     float4 positionCS               : SV_POSITION;
     UNITY_VERTEX_INPUT_INSTANCE_ID
@@ -81,7 +77,7 @@ void InitializeCustomSurfaceData(float2 uv, out CustomSurfaceData outCustomSurfa
     outCustomSurfaceData.specularTint = smoothness;
     outCustomSurfaceData.specularCol = baseColorMap.rgb;
     outCustomSurfaceData.anisotropic = dataMap.r;
-    outCustomSurfaceData.sheen = dataMap.g;
+    outCustomSurfaceData.sheen = dataMap.g*0.2;
     outCustomSurfaceData.sheenTint = dataMap.g;
     outCustomSurfaceData.clearcoat = smoothness;
     outCustomSurfaceData.clearcoatGloss = smoothness;
@@ -95,6 +91,7 @@ struct CustomInputData
     half3   normalWS;
     half3   tangentWS;
     half3   bitangentWS;
+    half3   binormalWS;
     half3   viewDirectionWS;
     float4  shadowCoord;
     half    fogCoord;
@@ -106,9 +103,7 @@ inline void InitializeCustomInputData(CustomVaryings input, half3 normalTS, out 
 {
     customInputData = (CustomInputData)0;
 
-#ifdef _ADDITIONAL_LIGHTS
     customInputData.positionWS = input.positionWS;
-#endif
 
 #ifdef _NORMALMAP
     customInputData.normalWS = TransformTangentToWorld(normalTS,half3x3(input.tangentWS.xyz, input.bitangentWS.xyz, input.normalWS.xyz));
@@ -121,14 +116,12 @@ inline void InitializeCustomInputData(CustomVaryings input, half3 normalTS, out 
     customInputData.bitangentWS = input.bitangentWS.xyz;
 
     customInputData.normalWS = NormalizeNormalPerPixel(customInputData.normalWS);
-    viewDirWS = SafeNormalize(viewDirWS);
 
-    customInputData.viewDirectionWS = viewDirWS;
-#if defined(_MAIN_LIGHT_SHADOWS) && !defined(_RECEIVE_SHADOWS_OFF)
+    viewDirWS = viewDirWS;
+
+    customInputData.viewDirectionWS = normalize(viewDirWS);
     customInputData.shadowCoord = input.shadowCoord;
-#else
     customInputData.shadowCoord = float4(0, 0, 0, 0);
-#endif
     customInputData.fogCoord = input.fogFactorAndVertexLight.x;
     customInputData.vertexLighting = input.fogFactorAndVertexLight.yzw;
     customInputData.bakedGI = SAMPLE_GI(input.lightmapUV, input.vertexSH, customInputData.normalWS);
