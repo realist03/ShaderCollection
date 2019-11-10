@@ -121,7 +121,6 @@ inline void InitializeCustomInputData(CustomVaryings input, half3 normalTS, out 
 
     customInputData.viewDirectionWS = normalize(viewDirWS);
     customInputData.shadowCoord = input.shadowCoord;
-    customInputData.shadowCoord = float4(0, 0, 0, 0);
     customInputData.fogCoord = input.fogFactorAndVertexLight.x;
     customInputData.vertexLighting = input.fogFactorAndVertexLight.yzw;
     customInputData.bakedGI = SAMPLE_GI(input.lightmapUV, input.vertexSH, customInputData.normalWS);
