@@ -3,11 +3,17 @@
 
 #include "Packages/com.unity.render-pipelines.lightweight/ShaderLibrary/Lighting.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
+CBUFFER_START(UnityPerMaterial)
 
-TEXTURE2D(_BaseColorMap);            SAMPLER(sampler_BaseColorMap);
+TEXTURE2D(_BaseMap);                 SAMPLER(sampler_BaseMap);
 TEXTURE2D(_NormalMap);               SAMPLER(sampler_NormalMap);
 TEXTURE2D(_DataMap);                 SAMPLER(sampler_DataMap);
 TEXTURE2D(_SkinLUT);                 SAMPLER(sampler_SkinLUT);
+
+float _Subfurface;
+float SSS_Strength;
+float3 SSS_Color;
+CBUFFER_END
 
 struct CustomAttributes
 {
@@ -59,7 +65,7 @@ struct CustomSurfaceData
 
 void InitializeCustomSurfaceData(float2 uv, out CustomSurfaceData outCustomSurfaceData)
 {
-    half4 baseColorMap = SRGBToLinear(SAMPLE_TEXTURE2D(_BaseColorMap,sampler_BaseColorMap,uv));
+    half4 baseColorMap = SRGBToLinear(SAMPLE_TEXTURE2D(_BaseMap,sampler_BaseMap,uv));
     outCustomSurfaceData.albedo = baseColorMap.rgb;
     outCustomSurfaceData.emission = baseColorMap.a;
 
@@ -69,6 +75,7 @@ void InitializeCustomSurfaceData(float2 uv, out CustomSurfaceData outCustomSurfa
     outCustomSurfaceData.metallic = dataMap.r;
     outCustomSurfaceData.roughness = dataMap.g;
     outCustomSurfaceData.subsurface = dataMap.b;
+    _Subfurface = outCustomSurfaceData.subsurface;
     outCustomSurfaceData.occlusion = dataMap.a;
 
     half smoothness = 1 - dataMap.g;

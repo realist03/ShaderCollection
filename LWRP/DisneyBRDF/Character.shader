@@ -2,13 +2,12 @@
 {
     Properties
     {
-        _BaseColorMap("BaseColor",2D) = "white"{}
-        [Toggle(_NORMALMAP)] _NORMALMAP("_NORMALMAP", Int) = 1.0
+        _BaseMap("BaseColor",2D) = "gray"{}
         _NormalMap("NormalMap",2D) = "bump"{}
-        [Toggle(_RECEIVE_SHADOWS_OFF)] _RECEIVE_SHADOWS_OFF("ReciveShadow", Int) = 0
-
         _DataMap("M",2D) = "gray"{}
         _SkinLUT("SkinLUT",2D) = "black"{}
+        SSS_Color("SSS_Color",Color) = (1,0,0)
+        SSS_Strength("SSS",FLoat) = 0.1
     }
     SubShader
     {
@@ -30,18 +29,6 @@
             // Material Keywords
             #pragma shader_feature _NORMALMAP
             #define _NORMALMAP 1
-            #pragma shader_feature _ALPHATEST_ON
-            #pragma shader_feature _ALPHAPREMULTIPLY_ON
-            #pragma shader_feature _EMISSION
-            #pragma shader_feature _METALLICSPECGLOSSMAP
-            #pragma shader_feature _SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A
-            #pragma shader_feature _OCCLUSIONMAP
-
-            #pragma shader_feature _SPECULARHIGHLIGHTS_OFF
-            #pragma shader_feature _ENVIRONMENTREFLECTIONS_OFF
-            #pragma shader_feature _SPECULAR_SETUP
-            #pragma shader_feature _RECEIVE_SHADOWS_OFF
-
             // -------------------------------------
             // Lightweight Pipeline keywords
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS
@@ -77,7 +64,7 @@
 
             ZWrite On
             ZTest LEqual
-            Cull[_Cull]
+            Cull Back
 
             HLSLPROGRAM
             // Required to compile gles 2.0 with standard srp library

@@ -136,6 +136,13 @@ float LightingFuncGGX_OPT3(float3 N, float3 V, float3 L, float roughness, float 
 	return specular;
 }
 
+float PreintergratedSSS(float NdotL)
+{
+    float curve = _Subfurface;
+    float4 sss = SAMPLE_TEXTURE2D(_SkinLUT,sampler_SkinLUT,float2(NdotL*0.5+0.5,curve));
+    return sss;
+}
+
 float3 DisneyBRDF(CustomSurfaceData surfaceData, float3 L, float3 V, float3 N, float3 X, float3 Y)
 {    
     Y = cross(N,X);
@@ -167,7 +174,7 @@ float3 DisneyBRDF(CustomSurfaceData surfaceData, float3 L, float3 V, float3 N, f
     // Fss90 used to "flatten" retroreflection based on roughness
     float Fss90 = LdotH*LdotH*surfaceData.roughness;
     float Fss = lerp(1.0, Fss90, FL) * lerp(1.0, Fss90, FV);
-    float ss = saturate(1.25 * (Fss * (1 / (NdotL + NdotV) - .5) + .5));
+    float ss = saturate(1.25 * (Fss * (1 / (NdotL + NdotV) - .5) + .5)); 
  
     // specular
     float aspect = sqrt(1-surfaceData.anisotropic*.9);
@@ -189,7 +196,10 @@ float3 DisneyBRDF(CustomSurfaceData surfaceData, float3 L, float3 V, float3 N, f
     float Fr = lerp(.04, 1.0, FH);
     float Gr = smithG_GGX(NdotL, .25) * smithG_GGX(NdotV, .25);
     
-    return ( /*(1/PI) * */lerp(Fd, ss, surfaceData.subsurface)*Cdlin + Fsheen) * (1-surfaceData.metallic) + Gs*Fs*Ds*NdotL + .25*surfaceData.clearcoat*Gr*Fr*Dr;
+    //PreintergratedSSS
+    float sss = PreintergratedSSS(NdotL) * _Subfurface;
+    //return sss.xxx;
+    return ( /*(1/PI) * */lerp(Fd, ss, surfaceData.subsurface)*Cdlin + Fsheen + sss * float3(1,0,0) * SSS_Strength) * (1-surfaceData.metallic) + Gs*Fs*Ds*NdotL + .25*surfaceData.clearcoat*Gr*Fr*Dr;
 }
 
 float3 DisneyPBR(CustomSurfaceData surfaceData, Light light, float3 normalWS, float3 viewDirectionWS,
