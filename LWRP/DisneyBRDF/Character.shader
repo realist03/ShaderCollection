@@ -3,11 +3,15 @@
     Properties
     {
         _BaseMap("BaseColor",2D) = "gray"{}
-        _NormalMap("NormalMap",2D) = "bump"{}
         _DataMap("M",2D) = "gray"{}
+        _NormalMap("NormalMap",2D) = "bump"{}
         _SkinLUT("SkinLUT",2D) = "black"{}
+        _KelemenLUT("_KelemenLUT",2D) = "black"{}
+        SSS_Dir("SSS_Dir",FLoat) = 0.5
         SSS_Color("SSS_Color",Color) = (1,0,0)
-        SSS_Strength("SSS",FLoat) = 0.1
+        SSS_Strength("SSS",Range(1,2)) = 1
+        _sss("sss",Float) = 0
+        _nl("nl",FLoat) = 0
     }
     SubShader
     {

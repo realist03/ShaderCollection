@@ -76,7 +76,7 @@ float3 Diffuse_Burley( float3 DiffuseColor, float Roughness, float NoV, float No
 	float FD90 = 0.5 + 2 * VoH * VoH * Roughness;
 	float FdV = 1 + (FD90 - 1) * Pow5( 1 - NoV );
 	float FdL = 1 + (FD90 - 1) * Pow5( 1 - NoL );
-	return 1 * ( FdV * FdL );
+	return 1 * ( (1 / PI) * FdL * FdV )*1;
 }
 
 float3 Diffuse_Burley_Frostbite( float3 DiffuseColor, float Roughness, float NoV, float NoL, float VoH )
@@ -86,7 +86,7 @@ float3 Diffuse_Burley_Frostbite( float3 DiffuseColor, float Roughness, float NoV
 	float FD90 = bias + 2 * VoH * VoH * Roughness;
 	float FdV = 1 + (FD90 - 1) * Pow5( 1 - NoV );
 	float FdL = 1 + (FD90 - 1) * Pow5( 1 - NoL );
-	return 1 * ( FdV * FdL ) * factor;
+	return 1 * ( FdV * FdL ) * factor / PI;
 }
 
 float2 LightingFuncGGX_FV(float dotLH, float roughness)
@@ -136,14 +136,60 @@ float LightingFuncGGX_OPT3(float3 N, float3 V, float3 L, float roughness, float 
 	return specular;
 }
 
+float G1 (float k, float x)
+{
+     return x / (x * (1 - k) + k);
+}
+
+//Cook-Torrance 
+float3 CookTorranceSpec(float NdotL, float LdotH, float NdotH, float NdotV, float roughness, float F0)
+{
+    float alpha = sqr(roughness);
+    float F, D, G;
+
+    // D
+    float alphaSqr = sqr(alpha);
+    float denom = sqr(NdotH) * (alphaSqr - 1.0) + 1.0f;
+    D = alphaSqr / (PI * sqr(denom));
+
+    // F
+    float LdotH5 = SchlickFresnel(LdotH);
+    F = F0 + (1.0 - F0) * LdotH5;
+
+    // G
+    float r = roughness + 1;
+    float k = sqr(r) / 8;
+    float g1L = G1(k, NdotL);
+    float g1V = G1(k, NdotV);
+    G = g1L * g1V;
+    
+    float specular = NdotL * D * F * G;
+    return specular;
+}
+float fresnelReflectance( float3 H, float3 V, float F0 )
+{
+	float base = 1.0 - dot( V, H );
+	float exponential = pow( base, 5.0 );
+	return exponential + F0 * ( 1.0 - exponential );
+}
+
+float Kelemen(float NdotH,float3 H, float3 V, float roughness)
+{
+    float3 kelemen = SAMPLE_TEXTURE2D(_KelemenLUT, sampler_KelemenLUT, float2(NdotH, 1-roughness));
+	float PH = pow(2.0 * kelemen, 10.0);
+	float F = fresnelReflectance(H, V, 0.028);
+	half specularColor = max(PH * F / dot(H, H), 0);
+    return specularColor;
+}
+
 float PreintergratedSSS(float NdotL)
 {
     float curve = _Subfurface;
-    float4 sss = SAMPLE_TEXTURE2D(_SkinLUT,sampler_SkinLUT,float2(NdotL*0.5+0.5,curve));
+    float4 sss = SAMPLE_TEXTURE2D(_SkinLUT,sampler_SkinLUT,float2(NdotL,curve));
     return sss;
 }
 
-float3 DisneyBRDF(CustomSurfaceData surfaceData, float3 L, float3 V, float3 N, float3 X, float3 Y)
+float3 DisneyBRDF(CustomSurfaceData surfaceData, float3 L, float3 V, float3 N, float3 X, float3 Y, float shadowAttenuation)
 {    
     Y = cross(N,X);
 
@@ -152,7 +198,7 @@ float3 DisneyBRDF(CustomSurfaceData surfaceData, float3 L, float3 V, float3 N, f
  
     float3 H = normalize(L+V);
     float NdotH = max(dot(N,H),0.0);
-    float LdotH = dot(L,H);
+    float LdotH = max(dot(L,H),0.0);
     float VdotH = max(dot(V,H),0.0);
 
     float3 Cdlin = surfaceData.albedo;
@@ -166,7 +212,7 @@ float3 DisneyBRDF(CustomSurfaceData surfaceData, float3 L, float3 V, float3 N, f
     // and lerp in diffuse retro-reflection based on roughness
     float FL = SchlickFresnel(NdotL), FV = SchlickFresnel(NdotV);
     float Fd90 = 0.5 + 2 * LdotH*LdotH * surfaceData.roughness;
-    float Fd = lerp(1.0, Fd90, FL) * lerp(1.0, Fd90, FV) * NdotL;
+    float Fd = lerp(1.0, Fd90, FL) * lerp(1.0, Fd90, FV) * lerp(1,NdotL,_nl);
     //float Fd = Diffuse_Burley(surfaceData.albedo,surfaceData.roughness,NdotV,NdotL,LdotH);
 
     // Based on Hanrahan-Krueger brdf approximation of isotropic bssrdf
@@ -175,7 +221,10 @@ float3 DisneyBRDF(CustomSurfaceData surfaceData, float3 L, float3 V, float3 N, f
     float Fss90 = LdotH*LdotH*surfaceData.roughness;
     float Fss = lerp(1.0, Fss90, FL) * lerp(1.0, Fss90, FV);
     float ss = saturate(1.25 * (Fss * (1 / (NdotL + NdotV) - .5) + .5)); 
- 
+ 	float transVdotL = pow( saturate( dot( -(L+N)*SSS_Dir, V ) ), 1) * SSS_Strength;
+	float3 translucency = (transVdotL ) *Cdlin * surfaceData.subsurface;
+	//float4 c = float4( s.Albedo * translucency * _Translucency, 0 );
+
     // specular
     float aspect = sqrt(1-surfaceData.anisotropic*.9);
     float ax = max(.001, sqr(surfaceData.roughness)/aspect);
@@ -185,9 +234,14 @@ float3 DisneyBRDF(CustomSurfaceData surfaceData, float3 L, float3 V, float3 N, f
     float3 Fs = lerp(Cspec0, float3(1,1,1), FH);
     //float Gs  = smithG_GGX_aniso(NdotL, dot(L, X), dot(L, Y), ax, ay);
     //Gs *= smithG_GGX_aniso(NdotV, dot(V, X), dot(V, Y), ax, ay);
+    //Gs *= Fs * Ds * NdotL;
+
     float Gs  = D_GGXaniso(ax, ay,NdotH, L, X, Y);
     Gs  *= D_GGXaniso(ax, ay,NdotH, V, X, Y);
-
+    Gs *= Fs * Ds * NdotL;
+    //float Gs = LightingFuncGGX_OPT3(N,V,L,surfaceData.roughness,1-surfaceData.roughness);
+    //float Gs = CookTorranceSpec(NdotL,LdotH,NdotH,NdotV,surfaceData.subsurface,1-surfaceData.roughness);
+    //float Gs = Kelemen(NdotH,H,V,surfaceData.subsurface);
     // sheen
     float3 Fsheen = FH * surfaceData.sheen * surfaceData.sheen;
  
@@ -197,16 +251,16 @@ float3 DisneyBRDF(CustomSurfaceData surfaceData, float3 L, float3 V, float3 N, f
     float Gr = smithG_GGX(NdotL, .25) * smithG_GGX(NdotV, .25);
     
     //PreintergratedSSS
-    float sss = PreintergratedSSS(NdotL) * _Subfurface;
-    //return sss.xxx;
-    return ( /*(1/PI) * */lerp(Fd, ss, surfaceData.subsurface)*Cdlin + Fsheen + sss * float3(1,0,0) * SSS_Strength) * (1-surfaceData.metallic) + Gs*Fs*Ds*NdotL + .25*surfaceData.clearcoat*Gr*Fr*Dr;
+    float sss = PreintergratedSSS(NdotL);
+    return NdotL.xxx;
+    return ( lerp(NdotL,sss,surfaceData.subsurface)*Cdlin + translucency + Fsheen ) * (1-surfaceData.metallic) + Gs + .25*surfaceData.clearcoat*Gr*Fr*Dr;
 }
 
 float3 DisneyPBR(CustomSurfaceData surfaceData, Light light, float3 normalWS, float3 viewDirectionWS,
                 float3 tangentWS, float binormalWS)
 {
-    //return half4(light.color,1);
-    return light.color * light.distanceAttenuation * light.shadowAttenuation * DisneyBRDF(surfaceData, light.direction,viewDirectionWS,normalWS,tangentWS,binormalWS);
+    //return float4(light.color,1);
+    return light.color * light.distanceAttenuation * light.shadowAttenuation * DisneyBRDF(surfaceData, light.direction,viewDirectionWS,normalWS,tangentWS,binormalWS,light.shadowAttenuation);
 }
 
 float4 DisneyBRDFFragment(CustomInputData customInputData, CustomSurfaceData customSurfaceData)
@@ -221,16 +275,16 @@ float4 DisneyBRDFFragment(CustomInputData customInputData, CustomSurfaceData cus
                         customInputData.normalWS, customInputData.viewDirectionWS,
                         customInputData.tangentWS, customInputData.binormalWS);
     
-    color += GlobalIllumination(brdfData, customInputData.bakedGI, customSurfaceData.occlusion, customInputData.normalWS, customInputData.viewDirectionWS);
+    //color += GlobalIllumination(brdfData, customInputData.bakedGI, customSurfaceData.occlusion, customInputData.normalWS, customInputData.viewDirectionWS);
 
-        int pixelLightCount = GetAdditionalLightsCount();
-        for (int i = 0; i < pixelLightCount; ++i)
-        {
-            Light light = GetAdditionalLight(i, customInputData.positionWS);
-            color += DisneyPBR(customSurfaceData, mainLight,
-                        customInputData.normalWS, customInputData.viewDirectionWS,
-                        customInputData.tangentWS, customInputData.binormalWS);
-        }
+    int pixelLightCount = GetAdditionalLightsCount();
+    for (int i = 0; i < pixelLightCount; ++i)
+    {
+        Light light = GetAdditionalLight(i, customInputData.positionWS);
+        color += DisneyPBR(customSurfaceData, mainLight,
+                    customInputData.normalWS, customInputData.viewDirectionWS,
+                    customInputData.tangentWS, customInputData.binormalWS);
+    }
 
     #ifdef _ADDITIONAL_LIGHTS_VERTEX
         color += customInputData.vertexLighting * brdfData.diffuse;

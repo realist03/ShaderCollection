@@ -9,10 +9,15 @@ TEXTURE2D(_BaseMap);                 SAMPLER(sampler_BaseMap);
 TEXTURE2D(_NormalMap);               SAMPLER(sampler_NormalMap);
 TEXTURE2D(_DataMap);                 SAMPLER(sampler_DataMap);
 TEXTURE2D(_SkinLUT);                 SAMPLER(sampler_SkinLUT);
+TEXTURE2D(_KelemenLUT);              SAMPLER(sampler_KelemenLUT);
 
 float _Subfurface;
 float SSS_Strength;
 float3 SSS_Color;
+float _sss;
+float fd;
+float SSS_Dir;
+float _nl;
 CBUFFER_END
 
 struct CustomAttributes
@@ -83,7 +88,7 @@ void InitializeCustomSurfaceData(float2 uv, out CustomSurfaceData outCustomSurfa
     outCustomSurfaceData.specular = smoothness;
     outCustomSurfaceData.specularTint = smoothness;
     outCustomSurfaceData.specularCol = baseColorMap.rgb;
-    outCustomSurfaceData.anisotropic = dataMap.r;
+    outCustomSurfaceData.anisotropic = dataMap.r*2;
     outCustomSurfaceData.sheen = dataMap.g*0.2;
     outCustomSurfaceData.sheenTint = dataMap.g;
     outCustomSurfaceData.clearcoat = smoothness;
