@@ -11,13 +11,16 @@ TEXTURE2D(_DataMap);                 SAMPLER(sampler_DataMap);
 TEXTURE2D(_SkinLUT);                 SAMPLER(sampler_SkinLUT);
 TEXTURE2D(_KelemenLUT);              SAMPLER(sampler_KelemenLUT);
 
-float _Subfurface;
-float SSS_Strength;
-float3 SSS_Color;
-float _sss;
-float fd;
-float SSS_Dir;
-float _nl;
+half _Translucency;
+half _TransNormalDistortion;
+half _TransScattering;
+half _TransDirect;
+half _TransAmbient;
+half _TransShadow;
+CBUFFER_END
+
+CBUFFER_START(UnityPerDraw)
+Light _mainLight;
 CBUFFER_END
 
 struct CustomAttributes
@@ -59,11 +62,11 @@ struct CustomSurfaceData
     half  subsurface;
     half  occlusion;
     half  specular;
-    half  specularTint;
+    half3  specularTint;
     half3 specularCol;
     half  anisotropic;
     half  sheen;
-    half  sheenTint;
+    half3  sheenTint;
     half  clearcoat;
     half  clearcoatGloss;
 };
@@ -80,17 +83,16 @@ void InitializeCustomSurfaceData(float2 uv, out CustomSurfaceData outCustomSurfa
     outCustomSurfaceData.metallic = dataMap.r;
     outCustomSurfaceData.roughness = dataMap.g;
     outCustomSurfaceData.subsurface = dataMap.b;
-    _Subfurface = outCustomSurfaceData.subsurface;
     outCustomSurfaceData.occlusion = dataMap.a;
 
-    half smoothness = 1 - dataMap.g;
+    half smoothness = 1 - outCustomSurfaceData.roughness;
 
     outCustomSurfaceData.specular = smoothness;
-    outCustomSurfaceData.specularTint = smoothness;
+    outCustomSurfaceData.specularTint = outCustomSurfaceData.albedo;
     outCustomSurfaceData.specularCol = baseColorMap.rgb;
-    outCustomSurfaceData.anisotropic = dataMap.r*2;
-    outCustomSurfaceData.sheen = dataMap.g*0.2;
-    outCustomSurfaceData.sheenTint = dataMap.g;
+    outCustomSurfaceData.anisotropic = dataMap.r;
+    outCustomSurfaceData.sheen = 1 - dataMap.r;
+    outCustomSurfaceData.sheenTint = outCustomSurfaceData.albedo;
     outCustomSurfaceData.clearcoat = smoothness;
     outCustomSurfaceData.clearcoatGloss = smoothness;
 

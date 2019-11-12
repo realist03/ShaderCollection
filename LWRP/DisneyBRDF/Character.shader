@@ -7,11 +7,12 @@
         _NormalMap("NormalMap",2D) = "bump"{}
         _SkinLUT("SkinLUT",2D) = "black"{}
         _KelemenLUT("_KelemenLUT",2D) = "black"{}
-        SSS_Dir("SSS_Dir",FLoat) = 0.5
-        SSS_Color("SSS_Color",Color) = (1,0,0)
-        SSS_Strength("SSS",Range(1,2)) = 1
-        _sss("sss",Float) = 0
-        _nl("nl",FLoat) = 0
+
+		_Translucency("Strength", Range( 0 , 50)) = 1
+		_TransNormalDistortion("Normal Distortion", Range( 0 , 1)) = 0.5
+		_TransScattering("Scaterring Power", Range( 1 , 50)) = 1
+		_TransDirect("Direct", Range( 0 , 1)) = .5
+		_TransAmbient("Ambient", Range( 0 , 1)) = 0.2
     }
     SubShader
     {
