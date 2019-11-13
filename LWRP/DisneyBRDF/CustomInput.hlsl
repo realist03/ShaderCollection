@@ -3,14 +3,17 @@
 
 #include "Packages/com.unity.render-pipelines.lightweight/ShaderLibrary/Lighting.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
+
 CBUFFER_START(UnityPerMaterial)
-
-TEXTURE2D(_BaseMap);                 SAMPLER(sampler_BaseMap);
-TEXTURE2D(_NormalMap);               SAMPLER(sampler_NormalMap);
-TEXTURE2D(_DataMap);                 SAMPLER(sampler_DataMap);
-TEXTURE2D(_SkinLUT);                 SAMPLER(sampler_SkinLUT);
-TEXTURE2D(_KelemenLUT);              SAMPLER(sampler_KelemenLUT);
-
+float4 _BaseMap_ST;
+half4 _BaseColor;
+half4 _SpecColor;
+half4 _EmissionColor;
+half _Cutoff;
+half _Smoothness;
+half _Metallic;
+half _BumpScale;
+half _OcclusionStrength;
 half _Translucency;
 half _TransNormalDistortion;
 half _TransScattering;
@@ -19,9 +22,11 @@ half _TransAmbient;
 half _TransShadow;
 CBUFFER_END
 
-CBUFFER_START(UnityPerDraw)
-Light _mainLight;
-CBUFFER_END
+TEXTURE2D(_BaseColorMap);            SAMPLER(sampler_BaseColorMap);
+TEXTURE2D(_NormalMap);               SAMPLER(sampler_NormalMap);
+TEXTURE2D(_DataMap);                 SAMPLER(sampler_DataMap);
+TEXTURE2D(_SkinLUT);                 SAMPLER(sampler_SkinLUT);
+TEXTURE2D(_KelemenLUT);              SAMPLER(sampler_KelemenLUT);
 
 struct CustomAttributes
 {
@@ -73,7 +78,7 @@ struct CustomSurfaceData
 
 void InitializeCustomSurfaceData(float2 uv, out CustomSurfaceData outCustomSurfaceData)
 {
-    half4 baseColorMap = SRGBToLinear(SAMPLE_TEXTURE2D(_BaseMap,sampler_BaseMap,uv));
+    half4 baseColorMap = SRGBToLinear(SAMPLE_TEXTURE2D(_BaseColorMap,sampler_BaseColorMap,uv));
     outCustomSurfaceData.albedo = baseColorMap.rgb;
     outCustomSurfaceData.emission = baseColorMap.a;
 

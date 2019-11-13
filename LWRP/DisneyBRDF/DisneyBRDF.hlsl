@@ -279,9 +279,9 @@ float3 DisneyBRDF(CustomSurfaceData surfaceData, float3 L, float3 V, float3 N, f
     Gs *= smithG_GGX_aniso(NdotV, dot(V, X), dot(V, Y), ax, ay);
     Gs *= Fs * Ds * NdotL;
 
-    float CTSpe = CookTorranceSpec(NdotL,LdotH,NdotH,NdotV,surfaceData.subsurface,1-surfaceData.roughness);
+    //float CTSpe = CookTorranceSpec(NdotL,LdotH,NdotH,NdotV,surfaceData.subsurface,1-surfaceData.roughness);
     //Gs *= F_Schlick1(surfaceData.specularTint,VdotH) * Vis_Schlick(surfaceData.roughness*surfaceData.roughness,NdotV,NdotL)*NdotL;
-    float visG = Vis_Schlick(surfaceData.roughness,NdotV,NdotH);
+    //float visG = Vis_Schlick(surfaceData.roughness,NdotV,NdotH);
     //Gs  = D_GGXaniso(ax, ay,NdotH, L, X, Y);
     //Gs  *= D_GGXaniso(ax, ay,NdotH, V, X, Y);
     //float Gs = LightingFuncGGX_OPT3(N,V,L,surfaceData.roughness,1-surfaceData.roughness);
@@ -290,12 +290,12 @@ float3 DisneyBRDF(CustomSurfaceData surfaceData, float3 L, float3 V, float3 N, f
     //Gs *= Gs;
 
     //UEspecular
-    float D = D_GGX1(a2,NdotH);
-    float F = F_Schlick1(surfaceData.specularTint,VdotH);
-    float Ga2 = clamp(pow(surfaceData.roughness+1,2)/8,0.002,1);
-    float G  = D_GGXaniso(ax, ay,NdotH, L, X, Y);
-    G  *= D_GGXaniso(ax, ay,NdotH, V, X, Y);
-    float UEspe = D*F*G*NdotL;
+    //float D = D_GGX1(a2,NdotH);
+    //float F = F_Schlick1(surfaceData.specularTint,VdotH);
+    //float Ga2 = clamp(pow(surfaceData.roughness+1,2)/8,0.002,1);
+    //float G  = D_GGXaniso(ax, ay,NdotH, L, X, Y);
+    //G  *= D_GGXaniso(ax, ay,NdotH, V, X, Y);
+    //float UEspe = D*F*G*NdotL;
 
     //LWRPspe
     //float lwS = LWRPSpe(N,H,L,surfaceData.roughness);
@@ -330,7 +330,7 @@ float4 DisneyBRDFFragment(CustomInputData customInputData, CustomSurfaceData cus
     BRDFData brdfData;
     InitializeBRDFData(customSurfaceData.albedo,customSurfaceData.metallic,customSurfaceData.roughness,brdfData);
     
-    _mainLight = GetMainLight(customInputData.shadowCoord);
+    Light _mainLight = GetMainLight(customInputData.shadowCoord);
     MixRealtimeAndBakedGI(_mainLight, customInputData.normalWS, customInputData.bakedGI, float4(0, 0, 0, 0));
 
     float3 color = DisneyPBR(customSurfaceData, _mainLight,
@@ -342,8 +342,8 @@ float4 DisneyBRDFFragment(CustomInputData customInputData, CustomSurfaceData cus
     int pixelLightCount = GetAdditionalLightsCount();
     for (int i = 0; i < pixelLightCount; ++i)
     {
-        Light light = GetAdditionalLight(i, customInputData.positionWS);
-        color += DisneyPBR(customSurfaceData, _mainLight,
+        Light _addlight = GetAdditionalLight(i, customInputData.positionWS);
+        color += DisneyPBR(customSurfaceData, _addlight,
                     customInputData.normalWS, customInputData.viewDirectionWS,
                     customInputData.tangentWS, customInputData.binormalWS);
     }

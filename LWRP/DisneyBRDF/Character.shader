@@ -2,7 +2,7 @@
 {
     Properties
     {
-        _BaseMap("BaseColor",2D) = "gray"{}
+        _BaseColorMap("BaseColor",2D) = "gray"{}
         _DataMap("M",2D) = "gray"{}
         _NormalMap("NormalMap",2D) = "bump"{}
         _SkinLUT("SkinLUT",2D) = "black"{}
@@ -20,8 +20,6 @@
 
         Pass
         {
-            Name "ForwardLit"
-            Tags{"LightMode" = "LightweightForward"}
 
             HLSLPROGRAM
             // Required to compile gles 2.0 with standard SRP library
@@ -89,8 +87,57 @@
             #pragma vertex ShadowPassVertex
             #pragma fragment ShadowPassFragment
 
-            #include "Packages/com.unity.render-pipelines.lightweight/Shaders/LitInput.hlsl"
-            #include "Packages/com.unity.render-pipelines.lightweight/Shaders/ShadowCasterPass.hlsl"
+            #include "Packages/com.unity.render-pipelines.lightweight/ShaderLibrary/Lighting.hlsl"
+            #include "CustomInput.hlsl"
+
+            float3 _LightDirection;
+
+            struct Attributes
+            {
+                float4 positionOS   : POSITION;
+                float3 normalOS     : NORMAL;
+                float2 texcoord     : TEXCOORD0;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
+            };
+
+            struct Varyings
+            {
+                float2 uv           : TEXCOORD0;
+                float4 positionCS   : SV_POSITION;
+            };
+
+            float4 GetShadowPositionHClip(Attributes input)
+            {
+                float3 positionWS = TransformObjectToWorld(input.positionOS.xyz);
+                float3 normalWS = TransformObjectToWorldNormal(input.normalOS);
+                Light _mainLight = GetMainLight();
+
+                float4 positionCS = TransformWorldToHClip(ApplyShadowBias(positionWS, normalWS, _mainLight.direction));
+
+            #if UNITY_REVERSED_Z
+                positionCS.z = min(positionCS.z, positionCS.w * UNITY_NEAR_CLIP_VALUE);
+            #else
+                positionCS.z = max(positionCS.z, positionCS.w * UNITY_NEAR_CLIP_VALUE);
+            #endif
+
+                return positionCS;
+            }
+
+            Varyings ShadowPassVertex(Attributes input)
+            {
+                Varyings output;
+                UNITY_SETUP_INSTANCE_ID(input);
+
+                output.uv = input.texcoord;
+                output.positionCS = GetShadowPositionHClip(input);
+                return output;
+            }
+
+            half4 ShadowPassFragment(Varyings input) : SV_TARGET
+            {
+                
+                return 0;
+            }
             ENDHLSL
         }
 
