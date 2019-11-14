@@ -5,28 +5,19 @@
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 
 CBUFFER_START(UnityPerMaterial)
-float4 _BaseMap_ST;
-half4 _BaseColor;
-half4 _SpecColor;
-half4 _EmissionColor;
-half _Cutoff;
-half _Smoothness;
-half _Metallic;
-half _BumpScale;
-half _OcclusionStrength;
-half _Translucency;
-half _TransNormalDistortion;
-half _TransScattering;
-half _TransDirect;
-half _TransAmbient;
-half _TransShadow;
+float3 _EmissionColor;
+float  _Translucency;
+float  _TransNormalDistortion;
+float  _TransScattering;
+float  _TransDirect;
+float  _TransAmbient;
+float  _TransShadow;
+float  _Cutoff;
 CBUFFER_END
 
 TEXTURE2D(_BaseColorMap);            SAMPLER(sampler_BaseColorMap);
 TEXTURE2D(_NormalMap);               SAMPLER(sampler_NormalMap);
 TEXTURE2D(_DataMap);                 SAMPLER(sampler_DataMap);
-TEXTURE2D(_SkinLUT);                 SAMPLER(sampler_SkinLUT);
-TEXTURE2D(_KelemenLUT);              SAMPLER(sampler_KelemenLUT);
 
 struct CustomAttributes
 {
@@ -44,11 +35,11 @@ struct CustomVaryings
 
     float3 positionWS               : TEXCOORD2;
 
-    half4 normalWS                  : TEXCOORD3;    // xyz: normal, w: viewDir.x
-    half4 tangentWS                 : TEXCOORD4;    // xyz: tangent, w: viewDir.y
-    half4 bitangentWS                : TEXCOORD5;    // xyz: bitangent, w: viewDir.z
+    float4 normalWS                  : TEXCOORD3;    // xyz: normal, w: viewDir.x
+    float4 tangentWS                 : TEXCOORD4;    // xyz: tangent, w: viewDir.y
+    float4 bitangentWS               : TEXCOORD5;    // xyz: bitangent, w: viewDir.z
 
-    half4 fogFactorAndVertexLight   : TEXCOORD6; // x: fogFactor, yzw: vertex light
+    float4 fogFactorAndVertexLight   : TEXCOORD6; // x: fogFactor, yzw: vertex light
 
     float4 shadowCoord              : TEXCOORD7;
 
@@ -59,44 +50,42 @@ struct CustomVaryings
 
 struct CustomSurfaceData
 {
-    half3 albedo;
-    half3 emission;
-    half3 normalTS;
-    half  metallic;
-    half  roughness;
-    half  subsurface;
-    half  occlusion;
-    half  specular;
-    half3  specularTint;
-    half3 specularCol;
-    half  anisotropic;
-    half  sheen;
-    half3  sheenTint;
-    half  clearcoat;
-    half  clearcoatGloss;
+    float3  albedo;
+    float3  emission;
+    float3  normalTS;
+    float   metallic;
+    float   roughness;
+    float   subsurface;
+    float   occlusion;
+    float   specular;
+    float3  specularTint;
+    float   anisotropic;
+    float   sheen;
+    float3  sheenTint;
+    float   clearcoat;
+    float   clearcoatGloss;
 };
 
 void InitializeCustomSurfaceData(float2 uv, out CustomSurfaceData outCustomSurfaceData)
 {
-    half4 baseColorMap = SRGBToLinear(SAMPLE_TEXTURE2D(_BaseColorMap,sampler_BaseColorMap,uv));
+    float4 baseColorMap = SRGBToLinear(SAMPLE_TEXTURE2D(_BaseColorMap,sampler_BaseColorMap,uv));
     outCustomSurfaceData.albedo = baseColorMap.rgb;
     outCustomSurfaceData.emission = baseColorMap.a;
 
     outCustomSurfaceData.normalTS = UnpackNormal(SAMPLE_TEXTURE2D(_NormalMap,sampler_NormalMap,uv));
     
-    half4 dataMap = SAMPLE_TEXTURE2D(_DataMap,sampler_DataMap,uv);
+    float4 dataMap = SAMPLE_TEXTURE2D(_DataMap,sampler_DataMap,uv);
     outCustomSurfaceData.metallic = dataMap.r;
     outCustomSurfaceData.roughness = dataMap.g;
     outCustomSurfaceData.subsurface = dataMap.b;
     outCustomSurfaceData.occlusion = dataMap.a;
 
-    half smoothness = 1 - outCustomSurfaceData.roughness;
+    float smoothness = 1 - outCustomSurfaceData.roughness*outCustomSurfaceData.roughness;
 
     outCustomSurfaceData.specular = smoothness;
     outCustomSurfaceData.specularTint = outCustomSurfaceData.albedo;
-    outCustomSurfaceData.specularCol = baseColorMap.rgb;
     outCustomSurfaceData.anisotropic = dataMap.r;
-    outCustomSurfaceData.sheen = 1 - dataMap.r;
+    outCustomSurfaceData.sheen = dataMap.g;
     outCustomSurfaceData.sheenTint = outCustomSurfaceData.albedo;
     outCustomSurfaceData.clearcoat = smoothness;
     outCustomSurfaceData.clearcoatGloss = smoothness;
@@ -107,50 +96,47 @@ void InitializeCustomSurfaceData(float2 uv, out CustomSurfaceData outCustomSurfa
 struct CustomInputData
 {
     float3  positionWS;
-    half3   normalWS;
-    half3   tangentWS;
-    half3   bitangentWS;
-    half3   binormalWS;
-    half3   viewDirectionWS;
+    float3  normalWS;
+    float3  tangentWS;
+    float3  bitangentWS;
+    float3  binormalWS;
+    float3  viewDirectionWS;
     float4  shadowCoord;
-    half    fogCoord;
-    half3   vertexLighting;
-    half3   bakedGI;
+    float   fogCoord;
+    float3  vertexLighting;
+    float3  bakedGI;
 };
 
-inline void InitializeCustomInputData(CustomVaryings input, half3 normalTS, out CustomInputData customInputData)
+inline void InitializeCustomInputData(CustomVaryings input, float3 normalTS, out CustomInputData customInputData)
 {
     customInputData = (CustomInputData)0;
 
     customInputData.positionWS = input.positionWS;
 
-#ifdef _NORMALMAP
-    customInputData.normalWS = TransformTangentToWorld(normalTS,half3x3(input.tangentWS.xyz, input.bitangentWS.xyz, input.normalWS.xyz));
-#else
-    customInputData.normalWS = input.normalWS.xyz;
-#endif
+    customInputData.normalWS = TransformTangentToWorld(normalTS,
+            float3x3(input.tangentWS.xyz, input.bitangentWS.xyz, input.normalWS.xyz));
 
-    half3 viewDirWS = half3(input.normalWS.w, input.tangentWS.w, input.bitangentWS.w);
+    float3 viewDirWS = float3(input.normalWS.w, input.tangentWS.w, input.bitangentWS.w);
     customInputData.tangentWS = input.tangentWS.xyz;
     customInputData.bitangentWS = input.bitangentWS.xyz;
 
     customInputData.normalWS = NormalizeNormalPerPixel(customInputData.normalWS);
-
-    viewDirWS = viewDirWS;
-
+    customInputData.binormalWS = cross(customInputData.normalWS,customInputData.tangentWS);
     customInputData.viewDirectionWS = normalize(viewDirWS);
+
     customInputData.shadowCoord = input.shadowCoord;
+
     customInputData.fogCoord = input.fogFactorAndVertexLight.x;
     customInputData.vertexLighting = input.fogFactorAndVertexLight.yzw;
     customInputData.bakedGI = SAMPLE_GI(input.lightmapUV, input.vertexSH, customInputData.normalWS);
 }
 
-inline void InitializeBRDFData(half3 albedo, half metallic, half roughness,out BRDFData outBRDFData)
+inline void InitializeBRDFData(float3 albedo, float metallic, float roughness,out BRDFData outBRDFData)
 {
     outBRDFData = (BRDFData)0;
     //IBL
-    half oneMinusReflectivity = OneMinusReflectivityMetallic(metallic);
-    half reflectivity = 1.0 - oneMinusReflectivity;
+    float oneMinusReflectivity = OneMinusReflectivityMetallic(metallic);
+    float reflectivity = 1.0 - oneMinusReflectivity;
 
     outBRDFData.diffuse = albedo * oneMinusReflectivity;
     outBRDFData.specular = lerp(kDieletricSpec.rgb, albedo, metallic);

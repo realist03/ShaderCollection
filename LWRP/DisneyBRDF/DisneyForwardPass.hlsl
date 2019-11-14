@@ -7,6 +7,15 @@
 ///////////////////////////////////////////////////////////////////////////////
 //                  Vertex and Fragment functions                            //
 ///////////////////////////////////////////////////////////////////////////////
+float3 ACESFilm(float3 x)
+{
+    float a = 2.51f;
+    float b = 0.03f;
+    float c = 2.43f;
+    float d = 0.59f;
+    float e = 0.14f;
+    return saturate((x*(a*x+b))/(x*(c*x+d)+e));
+}
 
 // Used in Standard (Physically Based) shader
 CustomVaryings LitPassVertex(CustomAttributes input)
@@ -19,20 +28,20 @@ CustomVaryings LitPassVertex(CustomAttributes input)
 
     VertexPositionInputs vertexInput = GetVertexPositionInputs(input.positionOS.xyz);
     VertexNormalInputs normalInput = GetVertexNormalInputs(input.normalOS, input.tangentOS);
-    half3 viewDirWS = GetCameraPositionWS() - vertexInput.positionWS;
-    half3 vertexLight = VertexLighting(vertexInput.positionWS, normalInput.normalWS);
-    half fogFactor = ComputeFogFactor(vertexInput.positionCS.z);
+    float3 viewDirWS = GetCameraPositionWS() - vertexInput.positionWS;
+    float3 vertexLight = VertexLighting(vertexInput.positionWS, normalInput.normalWS);
+    float fogFactor = ComputeFogFactor(vertexInput.positionCS.z);
 
     output.uv = input.texcoord;
 
-    output.normalWS = half4(normalInput.normalWS, viewDirWS.x);
-    output.tangentWS = half4(normalInput.tangentWS, viewDirWS.y);
-    output.bitangentWS = half4(normalInput.bitangentWS, viewDirWS.z);
+    output.normalWS = float4(normalInput.normalWS, viewDirWS.x);
+    output.tangentWS = float4(normalInput.tangentWS, viewDirWS.y);
+    output.bitangentWS = float4(normalInput.bitangentWS, viewDirWS.z);
     
     OUTPUT_LIGHTMAP_UV(input.lightmapUV, unity_LightmapST, output.lightmapUV);
     OUTPUT_SH(output.normalWS.xyz, output.vertexSH);
 
-    output.fogFactorAndVertexLight = half4(fogFactor, vertexLight);
+    output.fogFactorAndVertexLight = float4(fogFactor, vertexLight);
 
     output.positionWS = vertexInput.positionWS;
 
@@ -44,7 +53,7 @@ CustomVaryings LitPassVertex(CustomAttributes input)
 }
 
 // Used in Standard (Physically Based) shader
-half4 LitPassFragment(CustomVaryings input) : SV_Target
+float4 LitPassFragment(CustomVaryings input) : SV_Target
 {
     UNITY_SETUP_INSTANCE_ID(input);
     UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
@@ -52,12 +61,17 @@ half4 LitPassFragment(CustomVaryings input) : SV_Target
     CustomSurfaceData customSurfaceData;
     InitializeCustomSurfaceData(input.uv, customSurfaceData);
 
+#ifdef _ALPHATEST_ON
+    clip(customSurfaceData.emission - _Cutoff);
+#endif
     CustomInputData customInputData;
     InitializeCustomInputData(input, customSurfaceData.normalTS, customInputData);
-    
-    half4 color = DisneyBRDFFragment(customInputData, customSurfaceData);
-    //color.rgb = MixFog(color.rgb, customInputData.fogCoord);
+
+    float4 color = DisneyBRDFFragment(customInputData, customSurfaceData);
+    color.rgb = MixFog(color.rgb, customInputData.fogCoord);
+    color.rgb = ACESFilm(color.rgb);
     color = LinearToSRGB(color);
+
     return color;
 }
 #endif

@@ -3,11 +3,11 @@
     Properties
     {
         _BaseColorMap("BaseColor",2D) = "gray"{}
+        _EmissionColor("EmissionColor",Color) = (0,0,0)
         _DataMap("M",2D) = "gray"{}
         _NormalMap("NormalMap",2D) = "bump"{}
-        _SkinLUT("SkinLUT",2D) = "black"{}
-        _KelemenLUT("_KelemenLUT",2D) = "black"{}
-
+        [Toggle(_ALPHATEST_ON)]_ALPHATEST_ON("AlphaTest",Float) = 0
+        _Cutoff("Cutoff",Range(0,1)) = 0.5
 		_Translucency("Strength", Range( 0 , 50)) = 1
 		_TransNormalDistortion("Normal Distortion", Range( 0 , 1)) = 0.5
 		_TransScattering("Scaterring Power", Range( 1 , 50)) = 1
@@ -30,8 +30,9 @@
 
             // -------------------------------------
             // Material Keywords
-            #pragma shader_feature _NORMALMAP
-            #define _NORMALMAP 1
+            #define HIGH_END
+            #pragma shader_feature _ALPHATEST_ON
+
             // -------------------------------------
             // Lightweight Pipeline keywords
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS
@@ -110,9 +111,8 @@
             {
                 float3 positionWS = TransformObjectToWorld(input.positionOS.xyz);
                 float3 normalWS = TransformObjectToWorldNormal(input.normalOS);
-                Light _mainLight = GetMainLight();
 
-                float4 positionCS = TransformWorldToHClip(ApplyShadowBias(positionWS, normalWS, _mainLight.direction));
+                float4 positionCS = TransformWorldToHClip(ApplyShadowBias(positionWS, normalWS, _LightDirection));
 
             #if UNITY_REVERSED_Z
                 positionCS.z = min(positionCS.z, positionCS.w * UNITY_NEAR_CLIP_VALUE);
@@ -133,10 +133,13 @@
                 return output;
             }
 
-            half4 ShadowPassFragment(Varyings input) : SV_TARGET
+            float4 ShadowPassFragment(Varyings input) : SV_TARGET
             {
-                
-                return 0;
+                #ifdef _ALPHATEST_ON
+                    return SAMPLE_TEXTURE2D(_BaseColorMap,sampler_BaseColorMap,input.uv).a;
+                #else
+                    return 0;
+                #endif
             }
             ENDHLSL
         }
