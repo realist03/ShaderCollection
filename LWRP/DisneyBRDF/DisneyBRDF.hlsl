@@ -194,19 +194,18 @@ float3 DisneyBRDF(CustomSurfaceData surfaceData, float3 L, float3 V, float3 N, f
     float F0 = surfaceData.specularTint.g;
 	float FV = F0*FV_helper.x + (1.0f-F0)*FV_helper.y;
 
-    float Gs = smithG_GGX(NdotV,surfaceData.roughness);
-    Gs *= smithG_GGX(NdotL,surfaceData.roughness);
-
-    float a2 = surfaceData.roughness*surfaceData.roughness;
+    float a = sqr(surfaceData.roughness);    
+    float a2 = sqr(a);
     //float spe = a2 / sqr(sqr(NdotH) * (a2-1) + 1) * sqr(LdotH) * (surfaceData.roughness * 4 + 2);
-    half d = NdotH * NdotH * (a2-1) + 1.00001h;
+    half d = NdotH * NdotH * (a2-1) + 1;
 
     half LoH2 = LdotH * LdotH;
-    half specularTerm = a2 / ((d * d) * max(0.1h, LoH2) * surfaceData.roughness * 4 + 2);
-
+    half specularTerm = a2 / ((d * d) * max(0.1, LoH2) * (a * 4 + 2));
+    float3 brdfSpe = lerp(half3(0.04,0.04,0.04), surfaceData.albedo, surfaceData.metallic);
     //spe = saturate(spe - 6.103515625*2.718281828459-5);
-    //return specularTerm.xxx;
-    return Fd * Cdlin * (1-surfaceData.metallic) + specularTerm*lerp(half3(0.04,0.04,0.04), surfaceData.albedo, surfaceData.metallic) + translucency;
+    //return specularTerm*NdotL.xxx;
+    //return brdfSpe * NdotL;
+    return Fd * Cdlin * (1-surfaceData.metallic) + specularTerm*brdfSpe*NdotL + translucency;
 #endif
 
 }
