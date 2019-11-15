@@ -147,7 +147,28 @@ float3 DisneyBRDF(CustomSurfaceData surfaceData, float3 L, float3 V, float3 N, f
  	float transVdotL = pow( saturate( dot( -(L+(N*_TransNormalDistortion)), V) ) , _TransScattering) * _TransDirect;
     float3 translucency = (transVdotL * _TransDirect + _TransAmbient) * _Translucency * surfaceData.subsurface * Cdlin*Cdlin;
 
-#ifdef HIGH_END
+#ifdef _OPTIMIZE
+    float Fd = NdotL;
+    float Ds = GTR2(NdotH,surfaceData.roughness);
+
+	float2 FV_helper = LightingFuncGGX_FV(LdotH,surfaceData.roughness);
+    float F0 = surfaceData.specularTint.g;
+	float FV = F0*FV_helper.x + (1.0f-F0)*FV_helper.y;
+
+    float a = sqr(surfaceData.roughness);    
+    float a2 = sqr(a);
+    //float spe = a2 / sqr(sqr(NdotH) * (a2-1) + 1) * sqr(LdotH) * (surfaceData.roughness * 4 + 2);
+    half d = NdotH * NdotH * (a2-1) + 1;
+
+    half LoH2 = LdotH * LdotH;
+    half specularTerm = a2 / ((d * d) * max(0.1, LoH2) * (a * 4 + 2));
+    float3 brdfSpe = lerp(half3(0.04,0.04,0.04), surfaceData.albedo, surfaceData.metallic);
+    //spe = saturate(spe - 6.103515625*2.718281828459-5);
+    //return specularTerm*NdotL.xxx;
+    //return brdfSpe * NdotL;
+    return Fd * Cdlin * (1-surfaceData.metallic) + specularTerm*brdfSpe*NdotL + translucency;
+
+#else
     // Diffuse fresnel - go from 1 at normal incidence to .5 at grazing
     // and lerp in diffuse retro-reflection based on roughness
     float FL = SchlickFresnel(NdotL), FV = SchlickFresnel(NdotV);
@@ -183,29 +204,8 @@ float3 DisneyBRDF(CustomSurfaceData surfaceData, float3 L, float3 V, float3 N, f
     float Fr = lerp(.04, 1.0, FH);
     float Gr = smithG_GGX(NdotL, .25) * smithG_GGX(NdotV, .25);
 
-    return ((lerp(Fd, ss, surfaceData.subsurface*(1-NdotL))*Cdlin*NdotL) * (1-surfaceData.metallic) +
+    return ((lerp(Fd, ss, saturate(surfaceData.subsurface*(1-NdotL+0.5)))*Cdlin*NdotL) * (1-surfaceData.metallic) +
             spe*PI + PI*0.25*surfaceData.clearcoat*Gr*Fr*Dr)*shadowAttenuation + translucency + Fsheen;
-
-#else
-    float Fd = NdotL;
-    float Ds = GTR2(NdotH,surfaceData.roughness);
-
-	float2 FV_helper = LightingFuncGGX_FV(LdotH,surfaceData.roughness);
-    float F0 = surfaceData.specularTint.g;
-	float FV = F0*FV_helper.x + (1.0f-F0)*FV_helper.y;
-
-    float a = sqr(surfaceData.roughness);    
-    float a2 = sqr(a);
-    //float spe = a2 / sqr(sqr(NdotH) * (a2-1) + 1) * sqr(LdotH) * (surfaceData.roughness * 4 + 2);
-    half d = NdotH * NdotH * (a2-1) + 1;
-
-    half LoH2 = LdotH * LdotH;
-    half specularTerm = a2 / ((d * d) * max(0.1, LoH2) * (a * 4 + 2));
-    float3 brdfSpe = lerp(half3(0.04,0.04,0.04), surfaceData.albedo, surfaceData.metallic);
-    //spe = saturate(spe - 6.103515625*2.718281828459-5);
-    //return specularTerm*NdotL.xxx;
-    //return brdfSpe * NdotL;
-    return Fd * Cdlin * (1-surfaceData.metallic) + specularTerm*brdfSpe*NdotL + translucency;
 #endif
 
 }

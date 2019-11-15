@@ -1,4 +1,4 @@
-﻿Shader "Lightweight Render Pipeline/Character"
+﻿Shader "LWRP/Character_Disney"
 {
     Properties
     {
@@ -13,10 +13,14 @@
 		_TransScattering("Scaterring Power", Range( 1 , 50)) = 1
 		_TransDirect("Direct", Range( 0 , 1)) = .5
 		_TransAmbient("Ambient", Range( 0 , 1)) = 0.2
+
+        [Enum(UnityEngine.Rendering.CullMode)] _Cull ("Cull Mode", Float) = 1
     }
     SubShader
     {
         Tags {"RenderType" = "Opaque" "RenderPipeline" = "LightweightPipeline" "IgnoreProjector" = "True"}
+        
+        Cull[_Cull]
 
         Pass
         {
@@ -30,7 +34,6 @@
 
             // -------------------------------------
             // Material Keywords
-            #define HIGH_END
             #pragma shader_feature _ALPHATEST_ON
             #pragma shader_feature _SPECULARHIGHLIGHTS_OFF
 
@@ -42,7 +45,7 @@
             #pragma multi_compile _ _ADDITIONAL_LIGHT_SHADOWS
             #pragma multi_compile _ _SHADOWS_SOFT
             #pragma multi_compile _ _MIXED_LIGHTING_SUBTRACTIVE
-            #pragma multi_compile _ HIGH_END
+            #pragma multi_compile _ _OPTIMIZE
 
             // -------------------------------------
             // Unity defined keywords
