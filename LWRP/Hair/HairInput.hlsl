@@ -8,16 +8,23 @@ float _Metallic;
 float _Roughness;
 float _Transmission;
 float _Cutoff;
-float _ShiftT1;
+float _ShiftT;
 float _Power1;
 float _Strength1;
-float _ShiftT2;
 float _Power2;
 float _Strength2;
+float _w;
+float3 _scatterColor;
+float4 _DitherPattern_TexelSize;
+float _alpha;
+float _dither;
+float _ditherTile;
+float _ditherThrohold;
 CBUFFER_END
 
 TEXTURE2D(_BaseColorMap);               SAMPLER(sampler_BaseColorMap);
 TEXTURE2D(_ShiftTangentMap);            SAMPLER(sampler_ShiftTangentMap);
+TEXTURE2D(_DitherPattern);            SAMPLER(sampler_DitherPattern);
 
 struct Attributes
 {
@@ -46,7 +53,9 @@ struct Varyings
     float4 shadowCoord              : TEXCOORD7;
 
     half4 normalTS                  : TEXCOORD8;    // xyz: normal, w: viewDir.x
-
+    half3 lightDirTS                : TEXCOORD9;
+    half3 viewDirWS                 : TEXCOORD10;
+    float4 screenPosition           : TEXCOORD11;
     float4 positionCS               : SV_POSITION;
     UNITY_VERTEX_INPUT_INSTANCE_ID
     UNITY_VERTEX_OUTPUT_STEREO
@@ -59,7 +68,7 @@ struct CustomSurfaceData
     float   metallic;
     float   roughness;
     float   subsurface;
-    float   anisotropic;
+    float   occlusion;
 };
 
 inline void InitializeCustomSurfaceData(float2 uv, out CustomSurfaceData outCustomSurfaceData)
@@ -70,7 +79,7 @@ inline void InitializeCustomSurfaceData(float2 uv, out CustomSurfaceData outCust
     outCustomSurfaceData.emission = baseColorMap.a;
     outCustomSurfaceData.metallic = _Metallic;
     outCustomSurfaceData.roughness = _Roughness;
-
+    outCustomSurfaceData.occlusion = 1;
     float smoothness = 1 - outCustomSurfaceData.roughness*outCustomSurfaceData.roughness;
     outCustomSurfaceData.subsurface = _Transmission;
 }
@@ -81,12 +90,15 @@ struct CustomInputData
     float3  normalWS;
     float3  tangentTS;
     float3  bitangentTS;
+    float3  viewDirectionWS;
     float3  viewDirectionTS;
     float3  normalTS;
+    float3  lightDirTS;
     float4  shadowCoord;
     float   fogCoord;
     float3  vertexLighting;
     float3  bakedGI;
+    float4  screenPosition;
 };
 
 inline void InitializeCustomInputData(Varyings input, out CustomInputData customInputData)
@@ -104,13 +116,15 @@ inline void InitializeCustomInputData(Varyings input, out CustomInputData custom
     customInputData.bitangentTS = input.bitangentTS.xyz;
     customInputData.normalWS = NormalizeNormalPerPixel(input.normalWS.xyz);
     customInputData.normalTS = input.normalTS.xyz;
-    customInputData.viewDirectionTS = normalize(viewDirTS);
-
+    customInputData.viewDirectionWS = input.viewDirWS;
+    customInputData.viewDirectionTS = viewDirTS;
+    customInputData.lightDirTS = input.lightDirTS;
     customInputData.shadowCoord = input.shadowCoord;
 
     customInputData.fogCoord = input.fogFactorAndVertexLight.x;
     customInputData.vertexLighting = input.fogFactorAndVertexLight.yzw;
     customInputData.bakedGI = SAMPLE_GI(input.lightmapUV, input.vertexSH, customInputData.normalWS);
+    customInputData.screenPosition = input.screenPosition;
 }
 
 inline void InitializeBRDFData(float3 albedo, float metallic, float roughness,out BRDFData outBRDFData)

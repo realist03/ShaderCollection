@@ -1,4 +1,4 @@
-Shader "Lightweight Render Pipeline/ShadowOnlyPlane"
+Shader "LWRP/ShadowOnlyPlane"
 {
     Properties
     {

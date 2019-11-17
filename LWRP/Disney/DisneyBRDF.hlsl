@@ -131,6 +131,15 @@ float3 Diffuse_Burley_Frostbite( float3 DiffuseColor, float Roughness, float NoV
 //    return sss;
 //}
 
+float3 SkinTranslucency(float3 L, float3 N, float3 V, float3 transCol, float3 lightCol, float subsurface, float shadowAttenuation)
+{
+ 	float transVdotL = pow( saturate( dot( -(L+(N*_TransNormalDistortion)), V) ) , _TransScattering) * _TransDirect;
+    float3 translucency = (transVdotL * _TransDirect + _TransAmbient) * 
+                        _Translucency * subsurface * transCol*transCol * 
+                        lightCol * lerp(1,shadowAttenuation,_TransShadow);
+    return translucency;
+}
+
 float3 DisneyBRDF(CustomSurfaceData surfaceData, float3 L, float3 V, float3 N, float3 X, float3 Y, float shadowAttenuation)
 {    
     float NdotL = max(dot(N,L),0.0);
@@ -144,8 +153,6 @@ float3 DisneyBRDF(CustomSurfaceData surfaceData, float3 L, float3 V, float3 N, f
     float3 Cdlin = surfaceData.albedo;
 
     //sss
- 	float transVdotL = pow( saturate( dot( -(L+(N*_TransNormalDistortion)), V) ) , _TransScattering) * _TransDirect;
-    float3 translucency = (transVdotL * _TransDirect + _TransAmbient) * _Translucency * surfaceData.subsurface * Cdlin*Cdlin;
 
 #ifdef _OPTIMIZE
     float Fd = NdotL;
@@ -204,8 +211,9 @@ float3 DisneyBRDF(CustomSurfaceData surfaceData, float3 L, float3 V, float3 N, f
     float Fr = lerp(.04, 1.0, FH);
     float Gr = smithG_GGX(NdotL, .25) * smithG_GGX(NdotV, .25);
 
-    return ((lerp(Fd, ss, saturate(surfaceData.subsurface*(1-NdotL+0.5)))*Cdlin*NdotL) * (1-surfaceData.metallic) +
-            spe*PI + PI*0.25*surfaceData.clearcoat*Gr*Fr*Dr)*shadowAttenuation + translucency + Fsheen;
+    //return (lerp(Fd, ss, saturate(surfaceData.subsurface*(1-NdotL)+0.5)));
+    return ((lerp(Fd, ss, saturate(surfaceData.subsurface*(1-NdotL)+0.5))*Cdlin*NdotL) * (1-surfaceData.metallic) +
+            spe*PI + PI*0.25*surfaceData.clearcoat*Gr*Fr*Dr)*shadowAttenuation + 0;
 #endif
 
 }
@@ -229,7 +237,9 @@ float4 DisneyBRDFFragment(CustomInputData customInputData, CustomSurfaceData cus
                         customInputData.normalWS, customInputData.viewDirectionWS,
                         customInputData.tangentWS, customInputData.bitangentWS);
     
-    
+    color += SkinTranslucency(mainLight.direction,customInputData.normalWS,
+                    customInputData.viewDirectionWS,customSurfaceData.albedo,
+                    customSurfaceData.subsurface,mainLight.color,mainLight.shadowAttenuation);
     color += GlobalIllumination(brdfData, customInputData.bakedGI, customSurfaceData.occlusion, customInputData.normalWS, customInputData.viewDirectionWS);
 #ifdef _ADDITIONAL_LIGHTS
     int pixelLightCount = GetAdditionalLightsCount();

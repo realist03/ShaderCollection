@@ -24,23 +24,26 @@ Varyings LitPassVertex(Attributes input)
 
     VertexPositionInputs vertexInput = GetVertexPositionInputs(input.positionOS.xyz);
     VertexNormalInputs normalInput = GetVertexNormalInputs(input.normalOS, input.tangentOS);
-    half3 vertexLight = VertexLighting(vertexInput.positionWS, normalInput.normalWS);
-    half fogFactor = ComputeFogFactor(vertexInput.positionCS.z);
+    float3 vertexLight = VertexLighting(vertexInput.positionWS, normalInput.normalWS);
+    float fogFactor = ComputeFogFactor(vertexInput.positionCS.z);
 
     output.uv = input.texcoord;
 	float3x3 worldToTangent = float3x3( normalInput.tangentWS, normalInput.bitangentWS, normalInput.normalWS );
 
-    half3 viewDirWS = GetCameraPositionWS() - vertexInput.positionWS;
-    half3 viewDirTS = TransformWorldToTangent(viewDirWS,worldToTangent);
-    output.normalWS = half4(normalInput.normalWS, viewDirTS.x);
+    float3 viewDirWS = GetCameraPositionWS() - vertexInput.positionWS;
+    float3 viewDirTS = normalize(TransformWorldToTangent(viewDirWS,worldToTangent));
+    output.normalWS = float4(normalInput.normalWS, viewDirTS.x);
     output.normalTS = float4(TransformWorldToTangent(output.normalWS.xyz,worldToTangent),viewDirTS.x);
     output.tangentTS = float4(TransformWorldToTangent(normalInput.tangentWS.xyz,worldToTangent),viewDirTS.y);
     output.bitangentTS = float4(TransformWorldToTangent(normalInput.bitangentWS.xyz,worldToTangent),viewDirTS.z);
-    
+    output.viewDirWS = normalize(viewDirWS);
+    Light light = GetMainLight();
+    output.lightDirTS = TransformWorldToTangent(light.direction,worldToTangent);
+
     OUTPUT_LIGHTMAP_UV(input.lightmapUV, unity_LightmapST, output.lightmapUV);
     OUTPUT_SH(output.normalWS.xyz, output.vertexSH);
 
-    output.fogFactorAndVertexLight = half4(fogFactor, vertexLight);
+    output.fogFactorAndVertexLight = float4(fogFactor, vertexLight);
 
 #ifdef _ADDITIONAL_LIGHTS
     output.positionWS = vertexInput.positionWS;
@@ -49,7 +52,7 @@ Varyings LitPassVertex(Attributes input)
     output.shadowCoord = GetShadowCoord(vertexInput);
 
     output.positionCS = vertexInput.positionCS;
-
+    output.screenPosition = ComputeScreenPos(output.positionCS);
     return output;
 }
 
@@ -61,14 +64,23 @@ float4 HairPassFragment(Varyings input) : SV_Target
 
     CustomSurfaceData customSurfaceData;
     InitializeCustomSurfaceData(input.uv, customSurfaceData);
-
-#ifdef _ALPHATEST_ON
-    clip(customSurfaceData.emission - _Cutoff);
-#endif
+    _alpha = customSurfaceData.emission;
     CustomInputData customInputData;
     InitializeCustomInputData(input, customInputData);
 
     float4 color = HairBRDF(customInputData, customSurfaceData,input.uv);
+
+
+#ifdef _ALPHATEST_ON
+
+    #ifdef _USEDITHER
+        if(_alpha<_ditherThrohold)
+        _alpha *= lerp(1,Dither(customInputData.screenPosition),_dither);
+    #endif
+
+    clip(_alpha - _Cutoff);
+#endif
+
     color.rgb = MixFog(color.rgb, customInputData.fogCoord);
     color.rgb = ACESFilm(color.rgb);
     color = LinearToSRGB(color);

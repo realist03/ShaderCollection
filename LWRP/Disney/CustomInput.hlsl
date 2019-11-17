@@ -87,7 +87,7 @@ void InitializeCustomSurfaceData(float2 uv, out CustomSurfaceData outCustomSurfa
     outCustomSurfaceData.anisotropic = dataMap.r;
     outCustomSurfaceData.sheen = dataMap.g;
     outCustomSurfaceData.sheenTint = outCustomSurfaceData.albedo;
-    outCustomSurfaceData.clearcoat = smoothness;
+    outCustomSurfaceData.clearcoat = dataMap.r;
     outCustomSurfaceData.clearcoatGloss = smoothness;
 
 
