@@ -14,7 +14,7 @@
 		_TransDirect("Direct", Range( 0 , 1)) = .5
 		_TransAmbient("Ambient", Range( 0 , 1)) = 0.2
         _TransShadow("TransShadow",Range(0,1)) = 0.5
-        [Enum(UnityEngine.Rendering.CullMode)] _Cull ("Cull Mode", Float) = 1
+        [Enum(UnityEngine.Rendering.CullMode)] _Cull ("Cull Mode", Float) = 2
     }
     SubShader
     {

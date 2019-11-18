@@ -119,8 +119,11 @@ inline void InitializeCustomInputData(Varyings input, out CustomInputData custom
     customInputData.viewDirectionWS = input.viewDirWS;
     customInputData.viewDirectionTS = viewDirTS;
     customInputData.lightDirTS = input.lightDirTS;
+#ifdef _RECIVESHADOW
     customInputData.shadowCoord = input.shadowCoord;
-
+#else
+    customInputData.shadowCoord = float4(0,0,0,0);
+#endif
     customInputData.fogCoord = input.fogFactorAndVertexLight.x;
     customInputData.vertexLighting = input.fogFactorAndVertexLight.yzw;
     customInputData.bakedGI = SAMPLE_GI(input.lightmapUV, input.vertexSH, customInputData.normalWS);

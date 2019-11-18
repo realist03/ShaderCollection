@@ -9,8 +9,9 @@
         _Roughness("Roughness",FLoat) = 0.3
         _Transmission("Transmission",FLoat) = 0.3
         [Space(10)]
-        [Enum(UnityEngine.Rendering.CullMode)] _Cull ("Cull Mode", Float) = 1
-        [Toggle(_ALPHATEST_ON)]_ALPHATEST_ON("AlphaTest",Float) = 0
+        [Enum(UnityEngine.Rendering.CullMode)] _Cull ("Cull Mode", Float) = 2
+        [Toggle(_RECIVESHADOW)]_RECIVESHADOW("Recive Shadow",FLoat) = 1
+        [Toggle(_ALPHATEST_ON)]_ALPHATEST_ON("AlphaTest",Float) = 1
         _Cutoff("Cutoff",Range(0,1)) = 0.333
 
         [Space(10)]
@@ -50,6 +51,7 @@
             #pragma shader_feature _ALPHATEST_ON
             #pragma shader_feature _SPECULARHIGHLIGHTS_OFF
             #pragma shader_feature _USEDITHER
+            #pragma shader_feature _RECIVESHADOW
             // -------------------------------------
             // Lightweight Pipeline keywords
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS
