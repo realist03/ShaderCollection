@@ -2,10 +2,12 @@
 #define CUSTOMINPUT_INCLUDE
 #include "UnityCG.cginc"
 #include "AutoLight.cginc"
-#include "UnityCG.cginc"
 #include "Lighting.cginc"
+#include "Assets/ArtResources/Shader/Res/Base/Color.cginc"
 
-half3 _EmissionColor;
+half3 _MainColor;
+half _EmissionStrength;
+half3 _TransColor;
 half  _Translucency;
 half  _TransNormalDistortion;
 half  _TransScattering;
@@ -15,10 +17,15 @@ half  _TransShadow;
 half  _Cutoff;
 half _Metallic;
 half _Roughness;
-
+half _AOStrength;
+half3 specol;
+half3 _ChangeColorR;
+half3 _ChangeColorG;
+half3 _ChangeColorB;
 sampler2D _Diffuse;
 sampler2D _Normalmap;
 sampler2D _Multiply;
+sampler2D _ChangeMask;
 
 struct appdata
 {
@@ -53,38 +60,39 @@ struct CustomSurfaceData
     half   subsurface;
     half   occlusion;
     half   specular;
-    half3  specularTint;
+    half  specularTint;
     half   anisotropic;
     half   sheen;
     half3  sheenTint;
     half   clearcoat;
     half   clearcoatGloss;
+    half   alpha;
 };
-half4 SRGBToLinear(half4 c)
-{
-    half3 linearRGBLo  = c.rgb / 12.92;
-    half3 linearRGBHi  = pow((c.rgb + 0.055) / 1.055, half3(2.4, 2.4, 2.4));
-    half3 linearRGB    = (c.rgb <= 0.04045) ? linearRGBLo : linearRGBHi;
-    return half4(linearRGB,c.a);
-}
-
-half4 LinearToSRGB(half4 c)
-{
-    half3 sRGBLo = c.rgb * 12.92;
-    half3 sRGBHi = (pow(c.rgb, half3(1.0/2.4, 1.0/2.4, 1.0/2.4)) * 1.055) - 0.055;
-    half3 sRGB   = (c.rgb <= 0.0031308) ? sRGBLo : sRGBHi;
-    return half4(sRGB,c.a);
-}
 
 void InitializeCustomSurfaceData(half2 uv, out CustomSurfaceData outCustomSurfaceData)
 {
     half4 baseColorMap = SRGBToLinear(tex2D(_Diffuse,uv));
-    outCustomSurfaceData.albedo = baseColorMap.rgb;
     outCustomSurfaceData.emission = baseColorMap.a;
 
-    outCustomSurfaceData.normalTS = UnpackNormal(tex2D(_Normalmap,uv));
+    half4 normalMap = tex2D(_Normalmap,uv);
+    outCustomSurfaceData.normalTS = UnpackNormal(normalMap);
     
     half4 dataMap = tex2D(_Multiply,uv);
+
+#if _USECOLOR
+    outCustomSurfaceData.albedo = _MainColor;
+#else
+    outCustomSurfaceData.albedo = baseColorMap.rgb;
+#endif
+
+#if _CHANGECOLOR
+    half4 colorMask = tex2D(_ChangeMask, uv);
+    half3 colorR = colorMask.r * (half3(1, 1, 1) - _ChangeColorR.rgb);
+    half3 colorG = colorMask.g * (half3(1, 1, 1) - _ChangeColorG.rgb);
+    half3 colorB = colorMask.b * (half3(1, 1, 1) - _ChangeColorB.rgb);
+    half3 changeColor = half3(1, 1, 1) - (colorR + colorG + colorB);
+    outCustomSurfaceData.albedo.rgb = changeColor.rgb * outCustomSurfaceData.albedo.rgb;
+#endif
 
 #if _USEPROPERTY
     outCustomSurfaceData.metallic = _Metallic;
@@ -95,18 +103,18 @@ void InitializeCustomSurfaceData(half2 uv, out CustomSurfaceData outCustomSurfac
 #endif
 
     outCustomSurfaceData.subsurface = dataMap.b;
-    outCustomSurfaceData.occlusion = dataMap.a;
+    outCustomSurfaceData.occlusion = lerp(1,dataMap.a,0.5);
 
-    half smoothness = 1 - outCustomSurfaceData.roughness*outCustomSurfaceData.roughness;
+    half smoothness = 1 - outCustomSurfaceData.roughness;
 
     outCustomSurfaceData.specular = smoothness;
-    outCustomSurfaceData.specularTint = outCustomSurfaceData.albedo;
-    outCustomSurfaceData.anisotropic = dataMap.r;
+    outCustomSurfaceData.specularTint = outCustomSurfaceData.metallic;
+    outCustomSurfaceData.anisotropic = 0;
     outCustomSurfaceData.sheen = dataMap.g;
     outCustomSurfaceData.sheenTint = outCustomSurfaceData.albedo;
     outCustomSurfaceData.clearcoat = dataMap.r;
     outCustomSurfaceData.clearcoatGloss = smoothness;
-
+    outCustomSurfaceData.alpha = normalMap.a;
 
 }
 
@@ -128,10 +136,10 @@ inline void InitializeCustomInputData(v2f input, half3 normalTS, out CustomInput
 
     customInputData.positionWS = input.positionWS;
 
-    customInputData.binormalWS = cross(customInputData.normalWS,customInputData.tangentWS);
     customInputData.normalWS = normalize(mul(normalTS,
             half3x3(input.tangentWS.xyz, input.bitangentWS.xyz, input.normalWS.xyz)));
-
+    customInputData.binormalWS = cross(customInputData.normalWS,customInputData.tangentWS);
+    customInputData.tangentWS = cross(customInputData.normalWS,half4(1,0,0,0));
     half3 viewDirWS = half3(input.normalWS.w, input.tangentWS.w, input.bitangentWS.w);
     customInputData.tangentWS = input.tangentWS.xyz;
     customInputData.bitangentWS = input.bitangentWS.xyz;
